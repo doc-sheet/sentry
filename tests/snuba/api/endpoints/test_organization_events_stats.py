@@ -12,12 +12,12 @@ from snuba_sdk.conditions import Condition, Op
 from snuba_sdk.function import Function
 
 from sentry.constants import MAX_TOP_EVENTS
+from sentry.issues.grouptype import ProfileBlockedThreadGroupType
 from sentry.models.transaction_threshold import ProjectTransactionThreshold, TransactionMetric
 from sentry.snuba.discover import OTHER_KEY
 from sentry.testutils import APITestCase, SnubaTestCase
 from sentry.testutils.helpers.datetime import before_now, iso_format
 from sentry.testutils.silo import region_silo_test
-from sentry.types.issues import GroupType
 from sentry.utils.samples import load_data
 from tests.sentry.issues.test_utils import SearchIssueTestMixin
 
@@ -97,21 +97,21 @@ class OrganizationEventsStatsEndpointTest(APITestCase, SnubaTestCase, SearchIssu
         _, _, group_info = self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc),
         )
         self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc) + timedelta(hours=1, minutes=1),
         )
         self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc) + timedelta(hours=1, minutes=2),
         )
@@ -139,21 +139,21 @@ class OrganizationEventsStatsEndpointTest(APITestCase, SnubaTestCase, SearchIssu
         _, _, group_info = self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc) + timedelta(minutes=1),
         )
         self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc) + timedelta(minutes=1),
         )
         self.store_search_issue(
             self.project.id,
             self.user.id,
-            [f"{GroupType.PROFILE_BLOCKED_THREAD.value}-group1"],
+            [f"{ProfileBlockedThreadGroupType.type_id}-group1"],
             "prod",
             self.day_ago.replace(tzinfo=utc) + timedelta(minutes=2),
         )
@@ -1304,6 +1304,9 @@ class OrganizationEventsStatsTopNEvents(APITestCase, SnubaTestCase):
             assert response.status_code == 200
             assert all([interval[1][0]["count"] == 0 for interval in response.data["data"]])
 
+    @pytest.mark.xfail(
+        reason="The response.data[Other] returns 15 locally and returns 16 or 15 remotely."
+    )
     def test_tag_with_conflicting_function_alias_with_other_single_grouping(self):
         event_data = [
             {

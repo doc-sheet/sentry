@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 
 import {
   Group,
@@ -20,31 +20,26 @@ export function useHeartbeat(
 
   const [firstError, setFirstError] = useState<string | null>(null);
   const [firstTransactionReceived, setFirstTransactionReceived] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
+  const [sessionReceived, setSessionReceived] = useState(false);
   const [firstIssue, setFirstIssue] = useState<Group | undefined>(undefined);
 
-  const serverConnected = hasSession || firstTransactionReceived;
+  const serverConnected = sessionReceived || firstTransactionReceived;
 
-  const {
-    isLoading: eventIsLoading,
-    refetch: eventRefetch,
-    isFetchedAfterMount: eventIsFetchedAfterMount,
-  } = useQuery<Project>([`/projects/${organization.slug}/${projectSlug}/`], {
-    staleTime: 0,
-    refetchInterval: DEFAULT_POLL_INTERVAL,
-    enabled: !!projectSlug && !firstError, // Fetch only if the project is available and we have not yet received an error,
-    onSuccess: data => {
-      setFirstError(data.firstEvent);
-      // When an error is received, a transaction is also received
-      setFirstTransactionReceived(!!data.firstTransactionEvent);
-    },
-  });
+  const {isLoading: eventIsLoading} = useQuery<Project>(
+    [`/projects/${organization.slug}/${projectSlug}/`],
+    {
+      staleTime: 0,
+      refetchInterval: DEFAULT_POLL_INTERVAL,
+      enabled: !!projectSlug && !firstError, // Fetch only if the project is available and we have not yet received an error,
+      onSuccess: data => {
+        setFirstError(data.firstEvent);
+        // When an error is received, a transaction is also received
+        setFirstTransactionReceived(!!data.firstTransactionEvent);
+      },
+    }
+  );
 
-  const {
-    isLoading: sessionIsLoading,
-    refetch: sessionsRefetch,
-    isFetchedAfterMount: sessionIsFetchedAfterMount,
-  } = useQuery<SessionApiResponse>(
+  const {isLoading: sessionIsLoading} = useQuery<SessionApiResponse>(
     [
       `/organizations/${organization.slug}/sessions/`,
       {
@@ -63,7 +58,7 @@ export function useHeartbeat(
         const hasHealthData =
           getCount(data.groups, SessionFieldWithOperation.SESSIONS) > 0;
 
-        setHasSession(hasHealthData);
+        setSessionReceived(hasHealthData);
       },
     }
   );
@@ -72,7 +67,7 @@ export function useHeartbeat(
   // *not* include sample events, while just looking at the issues list will.
   // We will wait until the project.firstEvent is set and then locate the
   // event given that event datetime
-  const {refetch: issuesRefetch} = useQuery<Group[]>(
+  const {isLoading: issuesLoading} = useQuery<Group[]>(
     [`/projects/${organization.slug}/${projectSlug}/issues/`],
     {
       staleTime: 0,
@@ -84,18 +79,14 @@ export function useHeartbeat(
   );
 
   const firstErrorReceived = firstIssue ?? !!firstError;
-  const isFetchedAfterMount = eventIsFetchedAfterMount && sessionIsFetchedAfterMount;
-  const loading = eventIsLoading || sessionIsLoading || !isFetchedAfterMount;
-
-  useEffect(() => {
-    eventRefetch();
-    sessionsRefetch();
-    issuesRefetch();
-  }, [eventRefetch, issuesRefetch, sessionsRefetch, projectSlug]);
+  const loading = eventIsLoading || sessionIsLoading;
 
   return {
     loading,
+    issuesLoading,
     serverConnected,
     firstErrorReceived,
+    firstTransactionReceived,
+    sessionReceived,
   };
 }

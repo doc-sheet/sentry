@@ -19,7 +19,7 @@ import {
 import platforms from 'sentry/data/platforms';
 import {IconChevron} from 'sentry/icons';
 import {t, tct} from 'sentry/locale';
-import space from 'sentry/styles/space';
+import {space} from 'sentry/styles/space';
 import {Organization, Project} from 'sentry/types';
 import Projects from 'sentry/utils/projects';
 import withApi from 'sentry/utils/withApi';
@@ -109,6 +109,10 @@ class ProjectInstallPlatform extends Component<Props, State> {
       platform.id as PlatformKey
     );
 
+    const heartbeatFooter = !!organization?.features.includes(
+      'onboarding-heartbeat-footer'
+    );
+
     return (
       <Fragment>
         <StyledPageHeader>
@@ -175,8 +179,7 @@ class ProjectInstallPlatform extends Component<Props, State> {
             </Feature>
           )}
 
-          {this.isGettingStarted &&
-          !!organization?.features.includes('onboarding-heartbeat-footer') ? (
+          {this.isGettingStarted && heartbeatFooter ? (
             <HeartbeatFooter
               projectSlug={projectId}
               route={this.props.route}

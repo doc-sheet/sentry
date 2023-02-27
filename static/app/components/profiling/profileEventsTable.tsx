@@ -16,7 +16,7 @@ import {t} from 'sentry/locale';
 import {Organization, Project} from 'sentry/types';
 import {defined} from 'sentry/utils';
 import {DURATION_UNITS} from 'sentry/utils/discover/fieldRenderers';
-import {Container, NumberContainer, VersionContainer} from 'sentry/utils/discover/styles';
+import {Container, NumberContainer} from 'sentry/utils/discover/styles';
 import {getShortEventId} from 'sentry/utils/events';
 import {EventsResults} from 'sentry/utils/profiling/hooks/useProfileEvents';
 import {generateProfileFlamechartRoute} from 'sentry/utils/profiling/routes';
@@ -132,7 +132,7 @@ function ProfileEventsCell<F extends FieldType>(props: ProfileEventsCellProps<F>
   const columnType = props.meta.fields[key];
   const columnUnit = props.meta.units[key];
 
-  if (key === 'id') {
+  if (key === 'id' || key === 'profile.id') {
     const project = getProjectForRow(props.baggage, props.dataRow);
 
     if (!defined(project)) {
@@ -188,22 +188,14 @@ function ProfileEventsCell<F extends FieldType>(props: ProfileEventsCellProps<F>
 
   if (key === 'release') {
     if (value) {
-      if (props.baggage.organization.features.includes('discover-quick-context')) {
-        return (
-          <QuickContextHoverWrapper
-            dataRow={props.dataRow}
-            contextType={ContextType.RELEASE}
-            organization={props.baggage.organization}
-          >
-            <Version version={value} truncate />
-          </QuickContextHoverWrapper>
-        );
-      }
-
       return (
-        <VersionContainer>
-          <Version version={value} anchor={false} tooltipRawVersion truncate />
-        </VersionContainer>
+        <QuickContextHoverWrapper
+          dataRow={props.dataRow}
+          contextType={ContextType.RELEASE}
+          organization={props.baggage.organization}
+        >
+          <Version version={value} truncate />
+        </QuickContextHoverWrapper>
       );
     }
   }
@@ -256,9 +248,11 @@ function getProjectForRow<F extends FieldType>(
 
 const FIELDS = [
   'id',
+  'profile.id',
   'trace.transaction',
   'trace',
   'transaction',
+  'transaction.duration',
   'profile.duration',
   'project',
   'project.id',
@@ -282,9 +276,10 @@ const FIELDS = [
   'count()',
 ] as const;
 
-type FieldType = typeof FIELDS[number];
+type FieldType = (typeof FIELDS)[number];
 
 const RIGHT_ALIGNED_FIELDS = new Set<FieldType>([
+  'transaction.duration',
   'profile.duration',
   'p75()',
   'p95()',
@@ -296,6 +291,11 @@ const RIGHT_ALIGNED_FIELDS = new Set<FieldType>([
 const COLUMN_ORDERS: Record<FieldType, GridColumnOrder<FieldType>> = {
   id: {
     key: 'id',
+    name: t('Profile ID'),
+    width: COL_WIDTH_UNDEFINED,
+  },
+  'profile.id': {
+    key: 'profile.id',
     name: t('Profile ID'),
     width: COL_WIDTH_UNDEFINED,
   },
@@ -312,6 +312,11 @@ const COLUMN_ORDERS: Record<FieldType, GridColumnOrder<FieldType>> = {
   transaction: {
     key: 'transaction',
     name: t('Transaction'),
+    width: COL_WIDTH_UNDEFINED,
+  },
+  'transaction.duration': {
+    key: 'transaction.duration',
+    name: t('Duration'),
     width: COL_WIDTH_UNDEFINED,
   },
   'profile.duration': {

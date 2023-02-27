@@ -16,7 +16,7 @@ class MonitorDetailsTest(MonitorTestCase):
         monitor = self._create_monitor()
 
         for path_func in self._get_path_functions():
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
             resp = self.client.get(path)
 
             assert resp.status_code == 200, resp.content
@@ -25,6 +25,15 @@ class MonitorDetailsTest(MonitorTestCase):
     def test_mismatched_org_slugs(self):
         monitor = self._create_monitor()
         path = f"/api/0/organizations/asdf/monitors/{monitor.guid}/"
+        self.login_as(user=self.user)
+
+        resp = self.client.get(path)
+
+        assert resp.status_code == 400
+
+    def test_invalid_monitor_id(self):
+        self._create_monitor()
+        path = "/api/0/organizations/asdf/monitors/bad-guid/"
         self.login_as(user=self.user)
 
         resp = self.client.get(path)
@@ -47,7 +56,7 @@ class UpdateMonitorTest(MonitorTestCase):
 
         for i, path_func in enumerate(self._get_path_functions()):
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
             resp = self.client.put(path, data={"name": f"Monitor Name {i}"})
 
             assert resp.status_code == 200, resp.content
@@ -59,7 +68,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_can_disable(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
             resp = self.client.put(path, data={"status": "disabled"})
 
             assert resp.status_code == 200, resp.content
@@ -71,7 +80,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_can_enable(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             monitor.update(status=MonitorStatus.DISABLED)
 
@@ -86,7 +95,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cannot_enable_if_enabled(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             monitor.update(status=MonitorStatus.OK)
 
@@ -98,10 +107,24 @@ class UpdateMonitorTest(MonitorTestCase):
             monitor = Monitor.objects.get(id=monitor.id)
             assert monitor.status == MonitorStatus.OK
 
+    def test_timezone(self):
+        monitor = self._create_monitor()
+
+        for i, path_func in enumerate(self._get_path_functions()):
+            monitor = self._create_monitor()
+            path = path_func(monitor.guid)
+            resp = self.client.put(path, data={"config": {"timezone": "America/Los_Angeles"}})
+
+            assert resp.status_code == 200, resp.content
+            assert resp.data["id"] == str(monitor.guid)
+
+            monitor = Monitor.objects.get(id=monitor.id)
+            assert monitor.config["timezone"] == "America/Los_Angeles"
+
     def test_checkin_margin(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"checkin_margin": 30}})
 
@@ -114,7 +137,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_max_runtime(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"max_runtime": 30}})
 
@@ -127,7 +150,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_invalid_config_param(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"invalid": True}})
 
@@ -140,7 +163,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cronjob_crontab(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"schedule": "*/5 * * * *"}})
 
@@ -164,7 +187,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cronjob_nonstandard(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"schedule": "@monthly"}})
 
@@ -178,7 +201,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cronjob_crontab_invalid(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(path, data={"config": {"schedule": "*/0.5 * * * *"}})
 
@@ -191,7 +214,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cronjob_interval(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(
                 path, data={"config": {"schedule_type": "interval", "schedule": [1, "month"]}}
@@ -207,7 +230,7 @@ class UpdateMonitorTest(MonitorTestCase):
     def test_cronjob_interval_invalid_inteval(self):
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.put(
                 path, data={"config": {"schedule_type": "interval", "schedule": [1, "decade"]}}
@@ -239,6 +262,21 @@ class UpdateMonitorTest(MonitorTestCase):
 
         assert resp.status_code == 400
 
+    def test_cannot_change_project(self):
+        for path_func in self._get_path_functions():
+            monitor = self._create_monitor()
+            path = path_func(monitor.guid)
+            self.login_as(user=self.user)
+
+            project2 = self.create_project()
+            resp = self.client.put(path, data={"project": project2.slug})
+
+            assert resp.status_code == 400, resp.content
+            assert (
+                resp.data["detail"]["message"]
+                == "existing monitors may not be moved between projects"
+            ), resp.content
+
 
 @region_silo_test()
 class DeleteMonitorTest(MonitorTestCase):
@@ -252,7 +290,7 @@ class DeleteMonitorTest(MonitorTestCase):
         self.login_as(user=self.user)
         for path_func in self._get_path_functions():
             monitor = self._create_monitor()
-            path = path_func(monitor)
+            path = path_func(monitor.guid)
 
             resp = self.client.delete(path)
 

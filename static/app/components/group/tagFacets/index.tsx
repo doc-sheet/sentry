@@ -1,14 +1,17 @@
 import {Fragment, ReactNode, useEffect, useState} from 'react';
 import styled from '@emotion/styled';
+import {LocationDescriptor} from 'history';
 import keyBy from 'lodash/keyBy';
 
 import Placeholder from 'sentry/components/placeholder';
 import * as SidebarSection from 'sentry/components/sidebarSection';
 import {t} from 'sentry/locale';
-import space from 'sentry/styles/space';
+import {space} from 'sentry/styles/space';
 import {Environment, Event, Organization, Project, TagWithTopValues} from 'sentry/types';
 import {formatVersion} from 'sentry/utils/formatters';
+import {appendTagCondition} from 'sentry/utils/queryString';
 import useApi from 'sentry/utils/useApi';
+import {useLocation} from 'sentry/utils/useLocation';
 import useOrganization from 'sentry/utils/useOrganization';
 
 import TagFacetsDistributionMeter from './tagFacetsDistributionMeter';
@@ -135,25 +138,33 @@ export default function TagFacets({
       ) : (
         <Fragment>
           <SidebarSection.Title>{title || t('All Tags')}</SidebarSection.Title>
-          <Content>
-            <span data-test-id="top-distribution-wrapper">
+          {Object.keys(tagsData).length === 0 ? (
+            <NoTagsFoundContainer data-test-id="no-tags">
+              {environments.length
+                ? t('No tags found in the selected environments')
+                : t('No tags found')}
+            </NoTagsFoundContainer>
+          ) : (
+            <Content>
+              <span data-test-id="top-distribution-wrapper">
+                <TagFacetsDistributionMeterWrapper
+                  groupId={groupId}
+                  organization={organization}
+                  project={project}
+                  tagKeys={topTagKeys}
+                  tagsData={tagsData}
+                  expandFirstTag
+                />
+              </span>
               <TagFacetsDistributionMeterWrapper
                 groupId={groupId}
                 organization={organization}
                 project={project}
-                tagKeys={topTagKeys}
+                tagKeys={remainingTagKeys}
                 tagsData={tagsData}
-                expandFirstTag
               />
-            </span>
-            <TagFacetsDistributionMeterWrapper
-              groupId={groupId}
-              organization={organization}
-              project={project}
-              tagKeys={remainingTagKeys}
-              tagsData={tagsData}
-            />
-          </Content>
+            </Content>
+          )}
         </Fragment>
       )}
     </SidebarSection.Wrap>
@@ -175,6 +186,8 @@ function TagFacetsDistributionMeterWrapper({
   tagsData: Record<string, TagWithTopValues>;
   expandFirstTag?: boolean;
 }) {
+  const location = useLocation();
+  const query = {...location.query};
   return (
     <TagFacetsList>
       {tagKeys.map((tagKey, index) => {
@@ -182,13 +195,26 @@ function TagFacetsDistributionMeterWrapper({
         const topValues = tagWithTopValues ? tagWithTopValues.topValues : [];
         const topValuesTotal = tagWithTopValues ? tagWithTopValues.totalValues : 0;
 
-        const url = `/organizations/${organization.slug}/issues/${groupId}/tags/${tagKey}/?referrer=tag-distribution-meter`;
+        const otherTagValuesUrl = `/organizations/${organization.slug}/issues/${groupId}/tags/${tagKey}/?referrer=tag-distribution-meter`;
+        const eventsPath = `/organizations/${organization.slug}/issues/${groupId}/events/`;
 
         const segments = topValues
-          ? topValues.map(value => ({
-              ...value,
-              url,
-            }))
+          ? topValues.map(value => {
+              // Create a link to the events page with a tag condition on the selected value
+              const url: LocationDescriptor = {
+                ...location,
+                query: {
+                  ...query,
+                  query: appendTagCondition(null, tagKey, value.value),
+                },
+                pathname: eventsPath,
+              };
+
+              return {
+                ...value,
+                url,
+              };
+            })
           : [];
 
         return (
@@ -200,6 +226,7 @@ function TagFacetsDistributionMeterWrapper({
               onTagClick={() => undefined}
               project={project}
               expandByDefault={expandFirstTag && index === 0}
+              otherUrl={otherTagValuesUrl}
             />
           </li>
         );
@@ -216,6 +243,10 @@ const TagPlaceholders = styled('div')`
 
 const Content = styled('div')`
   margin-top: ${space(2)};
+`;
+
+const NoTagsFoundContainer = styled('p')`
+  margin-top: ${space(0.5)};
 `;
 
 export const TagFacetsList = styled('ol')`

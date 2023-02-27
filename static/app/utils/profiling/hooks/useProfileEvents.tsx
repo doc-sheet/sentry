@@ -18,7 +18,7 @@ type Sort<F> = {
   order: 'asc' | 'desc';
 };
 
-export interface UseProfileEventsOptions<F = ProfilingFieldType> {
+export interface UseProfileEventsOptions<F extends string = ProfilingFieldType> {
   fields: readonly F[];
   referrer: string;
   sort: Sort<F>;
@@ -33,7 +33,7 @@ export interface UseProfileEventsOptions<F = ProfilingFieldType> {
 
 type Unit = keyof typeof DURATION_UNITS | keyof typeof SIZE_UNITS | null;
 
-type EventsResultsDataRow<F extends string> = {
+export type EventsResultsDataRow<F extends string = ProfilingFieldType> = {
   [K in F]: string | number | null;
 };
 
@@ -62,10 +62,16 @@ export function useProfileEvents<F extends string>({
   const organization = useOrganization();
   const {selection} = usePageFilters();
 
+  let dataset: 'profiles' | 'discover' = 'profiles';
+  if (organization.features.includes('profiling-using-transactions')) {
+    dataset = 'discover';
+    query = `has:profile.id ${query ?? ''}`;
+  }
+
   const path = `/organizations/${organization.slug}/events/`;
   const endpointOptions = {
     query: {
-      dataset: 'profiles',
+      dataset,
       referrer,
       project: projects || selection.projects,
       environment: selection.environments,
