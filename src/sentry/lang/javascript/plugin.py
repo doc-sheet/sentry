@@ -4,7 +4,6 @@ from sentry.utils.safe import get_path
 
 from .errorlocale import translate_exception
 from .errormapping import rewrite_exception
-from .processor import JavaScriptStacktraceProcessor
 
 
 def preprocess_event(data):
@@ -31,9 +30,7 @@ def generate_modules(data):
 # code from `lang/javascript/processor.py` to run somewhere. Unless we want whole `processor.py`
 # to be moved to Rust side, including module generation, rewriting and translations.
 class JavascriptPlugin(Plugin2):
-    def get_event_enhancers(self, data):
-        return [lambda x: x]
-
+    pass
     # can_disable = False
 
     # def can_configure_for_project(self, project, **kwargs):
