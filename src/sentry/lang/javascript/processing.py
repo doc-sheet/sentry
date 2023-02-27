@@ -66,14 +66,7 @@ def _handles_frame(data, frame):
 
 
 def get_frames_for_symbolication(frames, data):
-    rv = []
-
-    for frame in reversed(frames):
-        if not _handles_frame(data, frame):
-            continue
-        rv.append(dict(frame))
-
-    return rv
+    return [dict(frame) for frame in reversed(frames) if _handles_frame(data, frame)]
 
 
 def process_payload(data):
@@ -85,7 +78,7 @@ def process_payload(data):
 
     symbolicator = Symbolicator(project=project, release=data["release"], event_id=data["event_id"])
 
-    stacktrace_infos = [stacktrace for stacktrace in find_stacktraces_in_data(data)]
+    stacktrace_infos = find_stacktraces_in_data(data)
     stacktraces = [
         {
             "frames": get_frames_for_symbolication(sinfo.stacktrace.get("frames") or (), data),
@@ -103,18 +96,20 @@ def process_payload(data):
 
     assert len(stacktraces) == len(response["stacktraces"]), (stacktraces, response)
 
-    for sinfo, complete_stacktrace in zip(stacktrace_infos, response["stacktraces"]):
+    for sinfo, raw_stacktrace, complete_stacktrace in zip(
+        stacktrace_infos, response["raw_stacktraces"], response["stacktraces"]
+    ):
         new_frames = []
 
         for raw_frame, complete_frame in zip(
-            sinfo.stacktrace["frames"], complete_stacktrace["frames"]
+            raw_stacktrace["frames"], complete_stacktrace["frames"]
         ):
             merged_frame = _merge_frame(raw_frame, complete_frame)
             new_frames.append(merged_frame)
 
         if sinfo.container is not None:
             sinfo.container["raw_stacktrace"] = {
-                "frames": list(sinfo.stacktrace["frames"]),
+                "frames": list(raw_stacktrace["frames"]),
             }
 
         sinfo.stacktrace["frames"] = new_frames
