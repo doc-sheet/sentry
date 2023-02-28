@@ -129,6 +129,12 @@ class RpcService(InterfaceWithLifecycle):
 
         def create_parameter_model(base_method: Callable[..., Any]) -> Type[pydantic.BaseModel]:
             """Dynamically create a Pydantic model class to represent the method's parameters."""
+
+            # TODO:
+            #   - Generalize for deserialization on receiving an RPC call
+            #   - Add validation for method conventions? (E.g.: defaults required,
+            #     positional args not allowed.)
+
             name = f"{cls.__name__}__{base_method.__name__}__ParameterModel"
             parameters = list(inspect.signature(base_method).parameters.values())
             parameters = parameters[1:]  # exclude `self` argument
