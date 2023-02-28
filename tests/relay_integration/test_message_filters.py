@@ -133,3 +133,8 @@ class FilterTests(RelayStoreHelper, TransactionTestCase):
         message = self._get_message_with_react_hydration_error()
         event = self.post_and_try_retrieve_event(message)
         assert event is None
+
+    def test_should_not_filter_out_react_hydration_errors_when_disabled(self):
+        self._set_filter_state(_react_hydration_errors_filter, "0")
+        message = self._get_message_with_react_hydration_error()
+        self.post_and_retrieve_event(message)
