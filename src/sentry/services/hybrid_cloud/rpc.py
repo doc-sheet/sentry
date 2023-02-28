@@ -1,6 +1,9 @@
+import inspect
 from abc import abstractmethod
 from functools import cached_property
-from typing import Any, Callable, Dict, Iterator, Mapping, TypeVar, cast
+from typing import Any, Callable, Dict, Iterator, Mapping, Tuple, Type, TypeVar, cast
+
+import pydantic
 
 from sentry.services.hybrid_cloud import InterfaceWithLifecycle
 from sentry.silo import SiloMode
@@ -117,12 +120,28 @@ class RpcService(InterfaceWithLifecycle):
     def _create_remote_delegation(cls) -> "RpcService":
         """Create a service object that makes remote calls to another silo."""
 
-        def create_remote_method(base_method: Callable[..., Any]) -> Callable[..., Any]:
-            method_name = base_method.__name__
+        def create_pydantic_field(param: inspect.Parameter) -> Tuple[Any, Any]:
+            if param.annotation is param.empty:
+                raise Exception("Type hints are required on RPC methods")
 
-            def remote_method(**kwargs: Any) -> Any:
-                # TODO: Handle kwarg serialization
-                return dispatch_remote_call(cls.name, method_name, kwargs)
+            default_value = ... if param.default is param.empty else param.default
+            return param.annotation, default_value
+
+        def create_parameter_model(base_method: Callable[..., Any]) -> Type[pydantic.BaseModel]:
+            """Dynamically create a Pydantic model class to represent the method's parameters."""
+            name = f"{cls.__name__}__{base_method.__name__}__ParameterModel"
+            parameters = list(inspect.signature(base_method).parameters.values())
+            parameters = parameters[1:]  # exclude `self` argument
+            field_definitions = {p.name: create_pydantic_field(p) for p in parameters}
+            return pydantic.create_model(name, **field_definitions)  # type: ignore
+
+        def create_remote_method(base_method: Callable[..., Any]) -> Callable[..., Any]:
+            parameter_model = create_parameter_model(base_method)
+
+            def remote_method(service_obj: "RpcService", **kwargs: Any) -> Any:
+                model_object = parameter_model(**kwargs)
+                serial_arguments = model_object.dict()
+                return dispatch_remote_call(cls.name, base_method.__name__, serial_arguments)
 
             return remote_method
 
