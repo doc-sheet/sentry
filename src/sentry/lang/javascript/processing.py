@@ -1,13 +1,26 @@
 import logging
 
-from sentry.lang.native.error import SymbolicationFailed, write_error
 from sentry.lang.native.symbolicator import Symbolicator
+from sentry.lang.native.error import SymbolicationFailed, write_error
 from sentry.models import EventError, Project
 from sentry.stacktraces.processing import find_stacktraces_in_data
 from sentry.utils.safe import get_path
 
 logger = logging.getLogger(__name__)
 
+
+def _merge_frame_context(new_frame, symbolicated):
+    new_frame = dict(new_frame)
+    symbolicated = dict(symbolicated)
+
+    if symbolicated.get("pre_context"):
+        new_frame["pre_context"] = symbolicated["pre_context"]
+    if symbolicated.get("context_line"):
+        new_frame["context_line"] = symbolicated["context_line"]
+    if symbolicated.get("post_context"):
+        new_frame["post_context"] = symbolicated["post_context"]
+
+    return new_frame
 
 def _merge_frame(new_frame, symbolicated):
     new_frame = dict(new_frame)
@@ -53,20 +66,21 @@ def _handle_response_status(event_data, response_json):
     write_error(error, event_data)
 
 
-def _handles_frame(data, frame):
-    if not frame:
-        return False
-
-    # TODO: Filter frames on something else than just "abs_path"
-    if get_path(frame, "abs_path") is None:
-        return False
-
-    platform = frame.get("platform") or data.get("platform")
-    return platform in ("javascript", "node")
-
-
 def get_frames_for_symbolication(frames, data):
-    return [dict(frame) for frame in reversed(frames) if _handles_frame(data, frame)]
+    return [dict(frame) for frame in reversed(frames)]
+
+
+def is_sourcemap_image(image):
+    return (
+        bool(image)
+        and image.get("type") == "sourcemap"
+        and image.get("debug_id") is not None
+        and image.get("code_file") is not None
+    )
+
+
+def sourcemap_images_from_data(data):
+    return get_path(data, "debug_meta", "images", default=(), filter=is_sourcemap_image)
 
 
 def process_payload(data):
@@ -76,8 +90,10 @@ def process_payload(data):
 
     project = Project.objects.get_from_cache(id=data["project"])
 
-    symbolicator = Symbolicator(project=project, event_id=data["event_id"], release=data["release"])
+    symbolicator = Symbolicator(project=project, event_id=data["event_id"], release=data["release"] )
 
+    modules = sourcemap_images_from_data(data)
+    
     stacktrace_infos = find_stacktraces_in_data(data)
     stacktraces = [
         {
@@ -89,7 +105,7 @@ def process_payload(data):
     if not any(stacktrace["frames"] for stacktrace in stacktraces):
         return
 
-    response = symbolicator.process_js(stacktraces=stacktraces, dist=data.get("dist"))
+    response = symbolicator.process_js(stacktraces=stacktraces, modules=modules, dist=data.get("dist"))
 
     if not _handle_response_status(data, response):
         return data
@@ -100,16 +116,22 @@ def process_payload(data):
         stacktrace_infos, response["raw_stacktraces"], response["stacktraces"]
     ):
         new_frames = []
+        new_sinfo_frames = []
 
-        for raw_frame, complete_frame in zip(
-            raw_stacktrace["frames"], complete_stacktrace["frames"]
+        for sinfo_frame, raw_frame, complete_frame in zip(
+            sinfo.stacktrace["frames"],
+            raw_stacktrace["frames"],
+            complete_stacktrace["frames"]
         ):
-            merged_frame = _merge_frame(raw_frame, complete_frame)
+            merged_context_frame = _merge_frame_context(sinfo_frame, raw_frame)
+            new_sinfo_frames.append(merged_context_frame)
+
+            merged_frame = _merge_frame(merged_context_frame, complete_frame)
             new_frames.append(merged_frame)
 
         if sinfo.container is not None:
             sinfo.container["raw_stacktrace"] = {
-                "frames": list(raw_stacktrace["frames"]),
+                "frames": new_sinfo_frames,
             }
 
         sinfo.stacktrace["frames"] = new_frames

@@ -9,7 +9,7 @@ from requests.exceptions import RequestException
 
 from sentry import options
 from sentry.cache import default_cache
-from sentry.lang.native.sources import get_internal_release_file_source, sources_for_symbolication
+from sentry.lang.native.sources import sources_for_symbolication, get_internal_release_file_source
 from sentry.models import Organization
 from sentry.net.http import Session
 from sentry.tasks.symbolication import RetrySymbolication
@@ -135,12 +135,13 @@ class Symbolicator:
         res = self._process("symbolicate_stacktraces", "symbolicate", json=json)
         return process_response(res)
 
-    def process_js(self, stacktraces, dist):
+    def process_js(self, stacktraces, modules, dist):
         source = get_internal_release_file_source(self.project, self.release)
 
         json = {
             "source": source,
             "stacktraces": stacktraces,
+            "modules": modules,
         }
 
         if dist is not None:
