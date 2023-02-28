@@ -3,6 +3,7 @@ from sentry.ingest.inbound_filters import (
     _legacy_browsers_filter,
     _localhost_filter,
     _web_crawlers_filter,
+    _react_hydration_errors_filter,
 )
 from sentry.models import ProjectOption
 from sentry.testutils import RelayStoreHelper, TransactionTestCase
@@ -109,3 +110,26 @@ class FilterTests(RelayStoreHelper, TransactionTestCase):
         self._set_filter_state(_legacy_browsers_filter, "0")
         message = self._get_message_from_legacy_browser()
         self.post_and_retrieve_event(message)
+
+    def _get_message_with_react_hydration_error(self):
+        message = self._get_message()
+        set_path(message, "platform", value="javascript")
+        set_path(
+            message,
+            "exception",
+            value={
+                "values": [
+                    {
+                        "type": "Error",
+                        "value": "Minified React error #418; visit https://reactjs.org/docs/error-decoder.html?invariant=418 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+                    }
+                ]
+            },
+        )
+        return message
+
+    def test_should_filter_out_react_hydration_errors(self):
+        self._set_filter_state(_react_hydration_errors_filter, "1")
+        message = self._get_message_with_react_hydration_error()
+        event = self.post_and_try_retrieve_event(message)
+        assert event is None

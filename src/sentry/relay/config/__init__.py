@@ -119,13 +119,15 @@ def get_filter_settings(project: Project) -> Mapping[str, Any]:
         # check if react-hydration-errors filter is enabled. If so, send react known hydration errors to relay
         if filter_settings[FilterTypes.REACT_HYDRATION_ERRORS]:
             react_known_hydration_errors = [
+                # Hydration failed because the initial UI does not match what was rendered on the server.
+                "https://reactjs.org/docs/error-decoder.html?invariant=418",
                 # The server could not finish this Suspense boundary, likely due to an error during server rendering. Switched to client rendering.
                 "https://reactjs.org/docs/error-decoder.html?invariant=419",
                 # There was an error while hydrating this Suspense boundary. Switched to client rendering.
                 "https://reactjs.org/docs/error-decoder.html?invariant=422",
-                # There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root...
+                # There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.
                 "https://reactjs.org/docs/error-decoder.html?invariant=423",
-                # Text content does not match server-rendered HTML...
+                # Text content does not match server-rendered HTML.
                 "https://reactjs.org/docs/error-decoder.html?invariant=425",
             ]
             error_messages = [*error_messages, *react_known_hydration_errors]
