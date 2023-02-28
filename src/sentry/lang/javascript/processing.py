@@ -1,7 +1,7 @@
 import logging
 
-from sentry.lang.javascript.symbolicator import Symbolicator
 from sentry.lang.native.error import SymbolicationFailed, write_error
+from sentry.lang.native.symbolicator import Symbolicator
 from sentry.models import EventError, Project
 from sentry.stacktraces.processing import find_stacktraces_in_data
 from sentry.utils.safe import get_path
@@ -76,7 +76,7 @@ def process_payload(data):
 
     project = Project.objects.get_from_cache(id=data["project"])
 
-    symbolicator = Symbolicator(project=project, release=data["release"], event_id=data["event_id"])
+    symbolicator = Symbolicator(project=project, event_id=data["event_id"], release=data["release"])
 
     stacktrace_infos = find_stacktraces_in_data(data)
     stacktraces = [
@@ -89,7 +89,7 @@ def process_payload(data):
     if not any(stacktrace["frames"] for stacktrace in stacktraces):
         return
 
-    response = symbolicator.process_payload(stacktraces=stacktraces, dist=data.get("dist"))
+    response = symbolicator.process_js(stacktraces=stacktraces, dist=data.get("dist"))
 
     if not _handle_response_status(data, response):
         return data
