@@ -117,7 +117,7 @@ def get_filter_settings(project: Project) -> Mapping[str, Any]:
         error_messages = project.get_option(f"sentry:{FilterTypes.ERROR_MESSAGES}")
 
         # check if react-hydration-errors filter is enabled. If so, send react known hydration errors to relay
-        if filter_settings[FilterTypes.REACT_HYDRATION_ERRORS]:
+        if filter_settings.get(FilterStatKeys.REACT_HYDRATION_ERRORS):
             react_known_hydration_errors = [
                 # Hydration failed because the initial UI does not match what was rendered on the server.
                 "https://reactjs.org/docs/error-decoder.html?invariant=418",
