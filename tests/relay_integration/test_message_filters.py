@@ -2,8 +2,8 @@ from sentry.ingest.inbound_filters import (
     _browser_extensions_filter,
     _legacy_browsers_filter,
     _localhost_filter,
-    _web_crawlers_filter,
     _react_hydration_errors_filter,
+    _web_crawlers_filter,
 )
 from sentry.models import ProjectOption
 from sentry.testutils import RelayStoreHelper, TransactionTestCase
