@@ -72,6 +72,9 @@ register(key="filters:browser-extensions", epoch_defaults={1: "0"})
 # Default legacy-browsers filter
 register(key="filters:localhost", epoch_defaults={1: "0"})
 
+# Default react-hydration-errors filter
+register(key="filters:react-hydration-errors", default=True)
+
 # Default breakdowns config
 register(
     key="sentry:breakdowns",
@@ -84,6 +87,7 @@ register(
         },
     },
 )
+
 
 # Which user-defined tags should be copied from transaction events to the
 # extracted performance metrics.

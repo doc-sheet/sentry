@@ -24,6 +24,7 @@ class FilterStatKeys:
     CORS = "cors"
     DISCARDED_HASH = "discarded-hash"  # Not replicated in Relay
     CRASH_REPORT_LIMIT = "crash-report-limit"  # Not replicated in Relay
+    REACT_HYDRATION_ERRORS = "react-hydration-errors"
 
 
 FILTER_STAT_KEYS_TO_VALUES = {
@@ -37,6 +38,7 @@ FILTER_STAT_KEYS_TO_VALUES = {
     FilterStatKeys.INVALID_CSP: tsdb.models.project_total_received_invalid_csp,
     FilterStatKeys.CORS: tsdb.models.project_total_received_cors,
     FilterStatKeys.DISCARDED_HASH: tsdb.models.project_total_received_discarded,
+    FilterStatKeys.REACT_HYDRATION_ERRORS: tsdb.models.project_total_received_react_hydration_errors,
 }
 
 
@@ -63,6 +65,7 @@ def get_all_filter_specs():
         _browser_extensions_filter,
         _legacy_browsers_filter,
         _web_crawlers_filter,
+        _react_hydration_errors_filter,
     )
 
 
@@ -230,4 +233,10 @@ _web_crawlers_filter = _FilterSpec(
     name="Filter out known web crawlers",
     description="Some crawlers may execute pages in incompatible ways which then cause errors that"
     " are unlikely to be seen by a normal user.",
+)
+
+_react_hydration_errors_filter = _FilterSpec(
+    id=FilterStatKeys.REACT_HYDRATION_ERRORS,
+    name="Filter out hydration errors",
+    description="React falls back to do a full re-render on a page and these errors are often not actionable.",
 )
