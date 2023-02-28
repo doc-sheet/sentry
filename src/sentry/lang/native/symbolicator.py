@@ -9,7 +9,7 @@ from requests.exceptions import RequestException
 
 from sentry import options
 from sentry.cache import default_cache
-from sentry.lang.native.sources import sources_for_symbolication, get_internal_release_file_source
+from sentry.lang.native.sources import get_internal_release_file_source, sources_for_symbolication
 from sentry.models import Organization
 from sentry.net.http import Session
 from sentry.tasks.symbolication import RetrySymbolication
