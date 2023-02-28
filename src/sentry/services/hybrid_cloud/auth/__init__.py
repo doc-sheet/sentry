@@ -5,14 +5,16 @@ import base64
 import contextlib
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Dict, Generator, List, Mapping, Tuple, Type, cast
+from typing import Any, Dict, Generator, List, Mapping, Optional, Tuple, Type, cast
 
 from django.contrib.auth.models import AnonymousUser
+from pydantic.fields import Field
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.request import Request
 
 from sentry.api.authentication import ApiKeyAuthentication, TokenAuthentication
 from sentry.relay.utils import get_header_relay_id, get_header_relay_signature
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.organization import RpcOrganization, RpcOrganizationMember
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.services.hybrid_cloud.user import RpcUser
@@ -164,16 +166,14 @@ class AuthService(RpcService):
         pass
 
 
-@dataclass
-class RpcAuthState:
-    sso_state: RpcMemberSsoState
-    permissions: List[str]
-
-
-@dataclass(eq=True)
-class RpcMemberSsoState:
+class RpcMemberSsoState(RpcModel):
     is_required: bool = False
     is_valid: bool = False
+
+
+class RpcAuthState(RpcModel):
+    sso_state: RpcMemberSsoState
+    permissions: List[str]
 
 
 @dataclass
@@ -319,32 +319,28 @@ class MiddlewareAuthenticationResponse(AuthenticationContext):
     user_from_signed_request: bool = False
 
 
-@dataclass(eq=True, frozen=True)
-class RpcAuthProviderFlags:
+class RpcAuthProviderFlags(RpcModel):
     allow_unlinked: bool = False
     scim_enabled: bool = False
 
 
-@dataclass(eq=True, frozen=True)
-class RpcAuthProvider:
+class RpcAuthProvider(RpcModel):
     id: int = -1
     organization_id: int = -1
     provider: str = ""
-    flags: RpcAuthProviderFlags = field(default_factory=lambda: RpcAuthProviderFlags())
+    flags: RpcAuthProviderFlags = Field(default_factory=lambda: RpcAuthProviderFlags())
 
 
-@dataclass
-class RpcAuthIdentity:
+class RpcAuthIdentity(RpcModel):
     id: int = -1
     user_id: int = -1
     provider_id: int = -1
     ident: str = ""
 
 
-@dataclass(eq=True)
-class RpcOrganizationAuthConfig:
+class RpcOrganizationAuthConfig(RpcModel):
     organization_id: int = -1
-    auth_provider: RpcAuthProvider | None = None
+    auth_provider: Optional[RpcAuthProvider] = None
     has_api_key: bool = False
 
 

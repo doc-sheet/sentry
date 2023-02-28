@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass, field
 from typing import Any, List, Mapping, Optional, cast
 
+from pydantic import Field
+
 from sentry.models.organization import OrganizationStatus
+from sentry.roles import team_roles
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.services.hybrid_cloud.user import RpcUser
 from sentry.silo import SiloMode
@@ -143,27 +146,29 @@ def team_status_visible() -> int:
     return int(TeamStatus.VISIBLE)
 
 
-@dataclass
-class RpcTeam:
+class RpcTeam(RpcModel):
     id: int = -1
-    status: int = field(default_factory=team_status_visible)
+    status: int = Field(default_factory=team_status_visible)
     organization_id: int = -1
     slug: str = ""
-    actor_id: int | None = None
+    actor_id: Optional[int] = None
     org_role: str = ""
 
     def class_name(self) -> str:
         return "Team"
 
 
-@dataclass
-class RpcTeamMember:
+class RpcTeamMember(RpcModel):
     id: int = -1
     is_active: bool = False
-    role: Optional[TeamRole] = None
-    project_ids: List[int] = field(default_factory=list)
-    scopes: List[str] = field(default_factory=list)
+    role_id: str = ""
+    project_ids: List[int] = Field(default_factory=list)
+    scopes: List[str] = Field(default_factory=list)
     team_id: int = -1
+
+    @property
+    def role(self) -> Optional[TeamRole]:
+        return team_roles.get(self.role_id) if self.role_id else None
 
 
 def project_status_visible() -> int:
@@ -172,17 +177,15 @@ def project_status_visible() -> int:
     return int(ProjectStatus.VISIBLE)
 
 
-@dataclass
-class RpcProject:
+class RpcProject(RpcModel):
     id: int = -1
     slug: str = ""
     name: str = ""
     organization_id: int = -1
-    status: int = field(default_factory=project_status_visible)
+    status: int = Field(default_factory=project_status_visible)
 
 
-@dataclass
-class RpcOrganizationMemberFlags:
+class RpcOrganizationMemberFlags(RpcModel):
     sso__linked: bool = False
     sso__invalid: bool = False
     member_limit__restricted: bool = False
@@ -197,18 +200,17 @@ class RpcOrganizationMemberFlags:
         return bool(getattr(self, item))
 
 
-@dataclass
-class RpcOrganizationMember:
+class RpcOrganizationMember(RpcModel):
     id: int = -1
     organization_id: int = -1
     # This can be null when the user is deleted.
     user_id: Optional[int] = None
-    member_teams: List[RpcTeamMember] = field(default_factory=list)
+    member_teams: List[RpcTeamMember] = Field(default_factory=list)
     role: str = ""
     has_global_access: bool = False
-    project_ids: List[int] = field(default_factory=list)
-    scopes: List[str] = field(default_factory=list)
-    flags: RpcOrganizationMemberFlags = field(default_factory=lambda: RpcOrganizationMemberFlags())
+    project_ids: List[int] = Field(default_factory=list)
+    scopes: List[str] = Field(default_factory=list)
+    flags: RpcOrganizationMemberFlags = Field(default_factory=lambda: RpcOrganizationMemberFlags())
 
     def get_audit_log_metadata(self, user_email: str) -> Mapping[str, Any]:
         team_ids = [mt.team_id for mt in self.member_teams]
@@ -222,8 +224,7 @@ class RpcOrganizationMember:
         }
 
 
-@dataclass
-class RpcOrganizationFlags:
+class RpcOrganizationFlags(RpcModel):
     allow_joinleave: bool = False
     enhanced_privacy: bool = False
     disable_shared_issues: bool = False
@@ -233,15 +234,13 @@ class RpcOrganizationFlags:
     require_email_verification: bool = False
 
 
-@dataclass
-class RpcOrganizationInvite:
+class RpcOrganizationInvite(RpcModel):
     id: int = -1
     token: str = ""
     email: str = ""
 
 
-@dataclass
-class RpcOrganizationSummary:
+class RpcOrganizationSummary(RpcModel):
     """
     The subset of organization metadata available from the control silo specifically.
     """
@@ -251,21 +250,19 @@ class RpcOrganizationSummary:
     name: str = ""
 
 
-@dataclass
 class RpcOrganization(RpcOrganizationSummary):
     # Represents the full set of teams and projects associated with the org.  Note that these are not filtered by
     # visibility, but you can apply a manual filter on the status attribute.
-    teams: List[RpcTeam] = field(default_factory=list)
-    projects: List[RpcProject] = field(default_factory=list)
+    teams: List[RpcTeam] = Field(default_factory=list)
+    projects: List[RpcProject] = Field(default_factory=list)
 
-    flags: RpcOrganizationFlags = field(default_factory=lambda: RpcOrganizationFlags())
+    flags: RpcOrganizationFlags = Field(default_factory=lambda: RpcOrganizationFlags())
     status: OrganizationStatus = OrganizationStatus.VISIBLE
 
     default_role: str = ""
 
 
-@dataclass
-class RpcUserOrganizationContext:
+class RpcUserOrganizationContext(RpcModel):
     """
     This object wraps an organization result inside of its membership context in terms of an (optional) user id.
     This is due to the large number of callsites that require an organization and a user's membership at the
@@ -277,7 +274,7 @@ class RpcUserOrganizationContext:
     user_id: Optional[int] = None
     # The organization is always non-null because the null wrapping is around this object instead.
     # A None organization => a None RpcUserOrganizationContext
-    organization: RpcOrganization = field(default_factory=lambda: RpcOrganization())
+    organization: RpcOrganization = Field(default_factory=lambda: RpcOrganization())
     # member can be None when the given user_id does not have membership with the given organization.
     # Note that all related fields of this organization member are filtered by visibility and is_active=True.
     member: Optional[RpcOrganizationMember] = None

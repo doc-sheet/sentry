@@ -1,22 +1,20 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import List, cast
 
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
 
 
-@dataclass(frozen=True)
-class RpcIdentityProvider:
+class RpcIdentityProvider(RpcModel):
     id: int
     type: str
     external_id: str
 
 
-@dataclass(frozen=True)
-class RpcIdentity:
+class RpcIdentity(RpcModel):
     id: int
     idp_id: int
     user_id: int

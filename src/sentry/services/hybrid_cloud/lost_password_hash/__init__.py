@@ -1,9 +1,10 @@
 import datetime
 from abc import abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import fields
 from typing import cast
 
 from sentry.models import LostPasswordHash
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
 
@@ -44,8 +45,7 @@ class LostPasswordHashService(RpcService):
         return RpcLostPasswordHash(**args)
 
 
-@dataclass(frozen=True)
-class RpcLostPasswordHash:
+class RpcLostPasswordHash(RpcModel):
     id: int = -1
     user_id: int = -1
     hash: str = ""

@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, cast
 
 from django.utils import timezone
 
 from sentry.models.user import User
-from sentry.services.hybrid_cloud import PatchableMixin, Unset, UnsetVal
+from sentry.services.hybrid_cloud import PatchableMixin, RpcModel, Unset, UnsetVal
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
 
 
-@dataclass(frozen=True, eq=True)
-class RpcOrganizationMapping:
+class RpcOrganizationMapping(RpcModel):
     organization_id: int = -1
     slug: str = ""
     name: str = ""
@@ -24,8 +22,7 @@ class RpcOrganizationMapping:
     customer_id: Optional[str] = None
 
 
-@dataclass
-class RpcOrganizationMappingUpdate(PatchableMixin["Organization"]):
+class RpcOrganizationMappingUpdate(RpcModel, PatchableMixin["Organization"]):
     organization_id: int = -1
     name: Unset[str] = UnsetVal
     customer_id: Unset[str] = UnsetVal

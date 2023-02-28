@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import datetime
 from abc import abstractmethod
-from dataclasses import dataclass
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, FrozenSet, List, Optional, TypedDict, cast
 
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.filter_query import FilterQueryInterface
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
@@ -14,8 +14,29 @@ if TYPE_CHECKING:
     from sentry.models import Group
 
 
-@dataclass(frozen=True, eq=True)
-class RpcUser:
+class RpcAvatar(RpcModel):
+    id: int = 0
+    file_id: int = 0
+    ident: str = ""
+    avatar_type: str = "letter_avatar"
+
+
+class RpcUserEmail(RpcModel):
+    id: int = 0
+    email: str = ""
+    is_verified: bool = False
+
+
+class RpcAuthenticator(RpcModel):
+    id: int = 0
+    user_id: int = -1
+    created_at: datetime.datetime = datetime.datetime(2000, 1, 1)
+    last_used_at: datetime.datetime = datetime.datetime(2000, 1, 1)
+    type: int = -1
+    config: Any = None
+
+
+class RpcUser(RpcModel):
     id: int = -1
     pk: int = -1
     name: str = ""
@@ -30,7 +51,7 @@ class RpcUser:
     is_anonymous: bool = False
     is_active: bool = False
     is_staff: bool = False
-    last_active: datetime.datetime | None = None
+    last_active: Optional[datetime.datetime] = None
     is_sentry_app: bool = False
     password_usable: bool = False
     is_password_expired: bool = False
@@ -67,31 +88,6 @@ class RpcUser:
 
     def has_2fa(self) -> bool:
         return len(self.authenticators) > 0
-
-
-@dataclass(frozen=True, eq=True)
-class RpcAvatar:
-    id: int = 0
-    file_id: int = 0
-    ident: str = ""
-    avatar_type: str = "letter_avatar"
-
-
-@dataclass(frozen=True, eq=True)
-class RpcUserEmail:
-    id: int = 0
-    email: str = ""
-    is_verified: bool = False
-
-
-@dataclass(frozen=True, eq=True)
-class RpcAuthenticator:
-    id: int = 0
-    user_id: int = -1
-    created_at: datetime.datetime = datetime.datetime(2000, 1, 1)
-    last_used_at: datetime.datetime = datetime.datetime(2000, 1, 1)
-    type: int = -1
-    config: Any = None
 
 
 class UserSerializeType(IntEnum):  # annoying

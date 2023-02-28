@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional, TypedDict, cast
 
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.filter_query import FilterQueryInterface
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
 
 
-@dataclass
-class RpcUserOption:
+class RpcUserOption(RpcModel):
     id: int = -1
     user_id: int = -1
     value: Any = None
     key: str = ""
-    project_id: int | None = None
-    organization_id: int | None = None
+    project_id: Optional[int] = None
+    organization_id: Optional[int] = None
 
 
 def get_option_from_list(

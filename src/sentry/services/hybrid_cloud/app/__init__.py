@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import abc
 import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Protocol, TypedDict, cast
+
+from pydantic.fields import Field
 
 from sentry.constants import SentryAppInstallationStatus
 from sentry.models import SentryApp, SentryAppInstallation
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.filter_query import FilterQueryInterface
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
@@ -15,8 +18,7 @@ if TYPE_CHECKING:
     from sentry.mediators.external_requests.alert_rule_action_requester import AlertRuleActionResult
 
 
-@dataclass
-class RpcSentryAppService:
+class RpcSentryAppService(RpcModel):
     """
     A `SentryAppService` (a notification service) wrapped up and serializable via the
     rpc interface.
@@ -27,35 +29,32 @@ class RpcSentryAppService:
     service_type: str = "sentry_app"
 
 
-@dataclass
-class RpcSentryAppInstallation:
+class RpcSentryApp(RpcModel):
     id: int = -1
-    organization_id: int = -1
-    status: int = SentryAppInstallationStatus.PENDING
-    sentry_app: RpcSentryApp = field(default_factory=lambda: RpcSentryApp())
-    date_deleted: Optional[datetime.datetime] = None
-    uuid: str = ""
-
-
-@dataclass
-class RpcSentryAppComponent:
-    uuid: str = ""
-    sentry_app_id: int = -1
-    type: str = ""
-    schema: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class RpcSentryApp:
-    id: int = -1
-    scope_list: List[str] = field(default_factory=list)
+    scope_list: List[str] = Field(default_factory=list)
     application_id: int = -1
-    proxy_user_id: int | None = None  # can be null on deletion.
+    proxy_user_id: Optional[int] = None  # can be null on deletion.
     owner_id: int = -1  # relation to an organization
     name: str = ""
     slug: str = ""
     uuid: str = ""
-    events: List[str] = field(default_factory=list)
+    events: List[str] = Field(default_factory=list)
+
+
+class RpcSentryAppInstallation(RpcModel):
+    id: int = -1
+    organization_id: int = -1
+    status: int = SentryAppInstallationStatus.PENDING
+    sentry_app: RpcSentryApp = Field(default_factory=lambda: RpcSentryApp())
+    date_deleted: Optional[datetime.datetime] = None
+    uuid: str = ""
+
+
+class RpcSentryAppComponent(RpcModel):
+    uuid: str = ""
+    sentry_app_id: int = -1
+    type: str = ""
+    app_schema: Mapping[str, Any] = Field(default_factory=dict)
 
 
 class SentryAppEventDataInterface(Protocol):
@@ -75,7 +74,7 @@ class SentryAppEventDataInterface(Protocol):
         pass
 
 
-@dataclass
+@dataclass  # TODO: Make compatible with RpcModel
 class RpcSentryAppEventData(SentryAppEventDataInterface):
     id: str = ""
     label: str = ""
@@ -107,7 +106,7 @@ class SentryAppInstallationFilterArgs(TypedDict, total=False):
 
 
 class AppService(
-    FilterQueryInterface[SentryAppInstallationFilterArgs, RpcSentryAppInstallation, None],
+    FilterQueryInterface[SentryAppInstallationFilterArgs, "RpcSentryAppInstallation", None],
     RpcService,
 ):
     name = "app"

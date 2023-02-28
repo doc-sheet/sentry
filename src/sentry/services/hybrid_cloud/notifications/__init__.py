@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 from abc import abstractmethod
 from typing import TYPE_CHECKING, List, Protocol, Sequence, cast
 
@@ -9,6 +8,7 @@ from sentry.notifications.types import (
     NotificationSettingOptionValues,
     NotificationSettingTypes,
 )
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.services.hybrid_cloud.user import RpcUser
 from sentry.silo import SiloMode
@@ -18,8 +18,7 @@ if TYPE_CHECKING:
     from sentry.models import NotificationSetting
 
 
-@dataclasses.dataclass
-class RpcNotificationSetting:
+class RpcNotificationSetting(RpcModel):
     scope_type: NotificationScopeType = NotificationScopeType.USER
     scope_identifier: int = -1
     target_id: int = -1

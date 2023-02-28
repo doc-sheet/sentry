@@ -1,8 +1,8 @@
 from abc import abstractmethod
-from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional, cast
 
+from sentry.services.hybrid_cloud import RpcModel
 from sentry.services.hybrid_cloud.rpc import RpcService, rpc_method
 from sentry.silo import SiloMode
 
@@ -22,8 +22,7 @@ class ProjectKeyRole(Enum):
             raise ValueError("Unexpected project key role enum")
 
 
-@dataclass
-class RpcProjectKey:
+class RpcProjectKey(RpcModel):
     dsn_public: str = ""
 
 
